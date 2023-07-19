@@ -1,0 +1,360 @@
+<html
+        xmlns:th="http://www.thymeleaf.org"
+        xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+        layout:decorate="~{commons/layout}">
+<head>
+    <title>Glass door</title>
+    <style>
+            td,th{
+                font-size: 10px;
+                text-align: center;
+            }
+            td{
+                color: black;
+            }
+            td,tr{
+                padding:0;
+                margin:0;
+            }
+    </style>
+</head>
+<body>
+    <div layout:fragment="menu">
+        <li class="active"><a href="/"><i class="la la-external-link"></i><span>Import Data</span></a></li>
+        <li><a href="/add"><i class="la la-eyedropper"></i><span>Add Collection</span></a></li>
+    </div>
+
+    <div layout:fragment="contents">
+
+        <div class="row flex-row">
+            <div class="col-xl-12">
+                <!-- Form -->
+                <div class="widget has-shadow">
+                    <div class="widget-header bordered no-actions d-flex align-items-center">
+                        <h4>Import Form</h4>
+                    </div>
+                    <span class="badge-text badge-text-small danger" id="load_status" style="float:right; display:none">downloading ...</span>
+                    <div class="widget-body">
+                        <div class="row flex-row">
+                            <div class="col-xl-3">
+                                <table style="padding:0px" id="locatorTB">
+                                    <tr th:each="locator: ${locators}"><td><button type="button" class="locator btn btn-secondary btn-square mr-1" th:onclick="|selectLocator('${locator}')|" style="width:100%" th:text="${locator}"></button></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-xl-9">
+                                <div class="form-group row d-flex align-items-center mb">
+                                    <label class="col-lg-2 form-control-label d-flex justify-content-lg-end">URL</label>
+                                    <div class="col-lg-8">
+                                        <input type="text" class="form-control" id="fileURL" placeholder="Enter data URL">
+                                    </div>
+                                    <div class="col-lg-2">
+                                        <button class="btn btn-gradient-01" id="downloadBT"><i class="la la-cloud-download"></i>Download</button>
+                                    </div>
+                                </div>
+
+                                <div class="form-group row d-flex align-items-center mb">
+                                    <label class="col-lg-2 form-control-label d-flex justify-content-lg-end">locator</label>
+                                    <div class="col-lg-8">
+                                        <input type="text" class="form-control" id="locatorName" placeholder="Enter locator">
+                                    </div>
+                                    <div class="col-lg-2">
+                                        <button class="btn btn-gradient-03" id="importBT"><i class="la la-pencil"></i>Import</button>
+                                    </div>
+                                </div>
+
+
+                                <div class="form-group row d-flex align-items-center mb">
+                                    <div class="col-lg-12">
+
+                                        <br>
+                                        <h5 style="color:blue">if you want to add geometry coordinates, name column as "geometry"</h5>
+
+                                        <div class="table-responsive" style="height:80vh;overflow: auto;">
+                                         
+                                            <table class="table mb-0" id="mytable">
+                                                <thead id="contentThead">
+                                                </thead>
+                                                <tbody id="contentTbody">
+                                                </tbody>
+                                            </table>
+
+                                        </div>
+
+
+                                    </div>
+
+                                </div>
+
+
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                <!-- End Form -->
+            </div>
+        </div>
+            <script>
+            
+            
+            var locators = "[[${locators}]]";
+            var jsonObject = "";
+            
+            $.ajax({
+                async: false,
+                type: "GET",
+                url: "get-locators",
+                success: function (data) {
+                    console.log(data[0]);
+                    var json = JSON.parse(data);
+                    console.log(json);
+                    $( "#locatorName" ).autocomplete({
+                        source: json
+                    });
+                }
+                });
+
+            function selectLocator(firstLocator){
+                $("#locatorName").val(firstLocator+".");
+            }
+
+
+            $(document).on('click','.deleteA', function()
+                {
+                    var idx = $(this).attr('idx');
+                    $("#contentThead tr").each(function() {
+                        var ths = $(this).find("th");
+                        $(ths[idx]).remove();
+                    });
+                    $("#contentTbody tr").each(function() {
+                        var tds = $(this).find("td");
+                        $(tds[idx]).remove();
+                    });
+                    $("#contentThead tr").each(function() {
+                        var ths = $(this).find("th");
+                        for(var i =0; i < ths.length; i ++){
+                        ths.eq(i).find("a").attr("idx",i);
+                        }
+                    });
+            });
+
+            $(document).ready(function(){
+                    $( "#locatorName" ).keypress(function() {
+                        var str = this.value;
+                        if(str.indexOf(".") != -1){
+                            var array = str.split(".");
+                            var rows = $("#locatorTB").find("tr td button");
+                            for(var i =0 ;i < rows.length; i ++){
+                                var temp = rows.eq(i).html();
+                                if(temp == array[0]){
+                                    $('.locator').removeClass('btn-primary');
+                                    $('.locator').addClass('btn-secondary');
+                                    rows.eq(i).removeClass('btn-secondary');
+                                    rows.eq(i).addClass('btn-primary');
+                                    break;
+                                }
+                            }
+                        }
+
+                    });
+
+                    $(".locator").on("click", function(){
+                        $('.locator').removeClass('btn-primary');
+                        $('.locator').addClass('btn-secondary');
+                        $(this).removeClass('btn-secondary');
+                        $(this).addClass('btn-primary');
+                    });
+
+                    $("button[id^='downloadBT']").on("click",function(){
+                        var fileURL = $("#fileURL").val();
+                        if(fileURL == "" || fileURL.indexOf("http") == -1){
+                            alert("enter correct download URL !");
+                            return;
+                        }
+                        $("#load_status").show();
+//                        var link = encodeURIComponent(fileURL);
+                        $.ajax({
+                            type: "GET",
+                            url: "download",
+                            data: {file_url:fileURL},
+                            dataType: 'json',
+                            success: function (data) {
+                            	
+                                if(data ==""){
+                                    alert(" incorrect file URL!");
+                                    return;
+                                }
+                                $("#load_status").hide();
+                                 jsonObject= data;
+                                var keys = Object.keys(jsonObject[0]);
+                                console.log(keys);
+                                var html = "<tr>";
+                                for(var i = 0; i < keys.length; i++){
+
+                                    html += "<th><input value='"+ keys[i] +"'><div><a class='deleteA' idx='"+i+"' style='cursor:pointer'><i class='la la-close delete'></i></a></div></th>";
+                                }
+                                html += "</tr>";
+                                $("#contentThead").html(html);
+                                html = "";
+                                for(var i = 0; i < jsonObject.length; i++){
+                                    var row = jsonObject[i];
+                                    html += "<tr>";
+                                    for(var j = 0; j < keys.length; j ++){
+                                        html += "<td>" +JSON.stringify(row[keys[j]]) + "</td>";
+                                    }
+                                    html += "</tr>";
+                                }
+                                $("#contentTbody").html(html);
+
+                            },
+                            error: function(data){
+                                console.log(data);
+                                if(data.responseText == ""){
+                                    alert("failed downloading!. incorrect file URL!")
+                                }else{
+                                    $("#load_status").hide();
+                                    var jsonObject= data;
+                                    var keys = Object.keys(jsonObject[0]);
+                                    console.log(keys);
+                                    var html = "<tr>";
+                                    for(var i = 0; i < keys.length; i++){
+
+                                        html += "<th><input value='"+ keys[i] +"'><div><a class='deleteA' idx='"+i+"' style='cursor:pointer'><i class='la la-close delete'></i></a></div></th>";
+                                    }
+                                    html += "</tr>";
+                                    $("#contentThead").html(html);
+                                    html = "";
+                                    for(var i = 0; i < jsonObject.length; i++){
+                                        var row = jsonObject[i];
+                                        html += "<tr>";
+                                        for(var j = 0; j < keys.length; j ++){
+                                            html += "<td>" +JSON.stringify(row[keys[j]]) + "</td>";
+                                        }
+                                        html += "</tr>";
+                                    }
+                                    $("#contentTbody").html(html);
+
+                                }
+
+                            }
+                        });
+
+
+
+                    });
+                    $("button[id^='importBT']").on("click",function(){
+                        var columns = $("#contentThead").find("tr input");
+                        var keys = [];
+                        for(var i =0; i < columns.length; i ++){
+                            var val = columns.eq(i).val();
+                            keys.push(val);
+                        }
+                        console.log(keys);
+                        var rows = $("#contentTbody").find("tr");
+                        var jsonObject = [];
+                        for(var i =0 ;i < rows.length; i ++){
+                            var tds = rows.eq(i).find("td");
+                            var item = {};
+                            for(var j =0 ; j < keys.length; j ++){
+                                if(keys[j] == "geometry"){
+                                    var geo = tds.eq(j).html();
+                                    if(geo.indexOf("Point")!= -1 && geo.indexOf("coordinates")!= -1){
+                                        var jsonGeo = JSON.parse(geo);
+                                        item[keys[j]] = jsonGeo.coordinates[0] + "," + jsonGeo.coordinates[1];
+                                    }else if(geo.indexOf("(")!= -1){
+                                        var startPos = geo.indexOf("(");
+                                        var endPos = geo.indexOf(")");
+                                        var coord = geo.substring(startPos+1,endPos-startPos-1);
+                                        coord = coord.trim();
+                                        coord = coord.replace(" ",",");
+                                        item[keys[j]] = coord;
+                                    }
+
+                                }else{
+                                    item[keys[j]] = tds.eq(j).html();
+                                }
+                            }
+                            jsonObject.push(item);
+                        }
+                        if(jsonObject.length == 0){
+                            alert("Please download data source!");
+                            return;
+                        }
+
+                        console.log(jsonObject);
+                        var locatorName = $("#locatorName").val();
+                        if(locatorName.indexOf(".") != -1){
+                            var pos = locatorName.indexOf(".");
+                            var firstLocator = locatorName.substring(0,pos)
+                            var secondLocator = locatorName.substring(pos+1,locatorName.length)
+
+                            if(firstLocator.trim() == "" || secondLocator.trim() == ""){
+                                alert("Please Enter Correct Locator!");
+                                return;
+                            }
+                        $.ajax({
+                            type: "POST",
+                            url: "import",
+                            data: {firstLocator:firstLocator,secondLocator:secondLocator,datasource:JSON.stringify(jsonObject)},
+                            dataType: 'json',
+                            error: function(data){
+                                if(data.responseText == "success"){
+                                    alert("successfully imported!");
+                                    return;
+                                }else if(data.responseText == "error" || data.responseText == ""){
+                                    alert("failed import!")
+                                }
+
+                            }
+
+                            });
+
+                        }else{
+                            alert("Please Enter Correct Locator!");
+                            return;
+                        }
+
+                    });
+
+                });
+
+                    
+              /*   $("button[id^='saverecordsbtn']").on("click",function(){
+                	console.log("manish");
+                	$("mytable").each(function( index ) {
+                    
+                    	  console.log( index + ": " + $( this ).text() );
+                    	});
+                	var collectionName = $("#locatorName").val();
+                	if(collectionName.trim() == ""){
+                        alert("Please select Correct collection!");
+                        return;
+                    }
+                	 $.ajax({
+                         type: "POST",
+                         url: "saveRecords",
+                         data: {collectionName:collectionName,datasource:JSON.stringify(jsonObject)},
+                         dataType: 'json',
+                         error: function(data){
+                             if(data.responseText == "success"){
+                                 alert("successfully imported!");
+                                 location.reload();
+                                 return;
+                             }else if(data.responseText == "error" || data.responseText == ""){
+                                 alert("failed import!")
+                             }
+
+                         }
+
+                         });
+                	
+                	
+                });
+                     */
+        </script>
+
+
+    </div>
+
+</body>
+</html>

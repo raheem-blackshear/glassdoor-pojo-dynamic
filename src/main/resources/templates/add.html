@@ -1,0 +1,158 @@
+<html
+        xmlns:th="http://www.thymeleaf.org"
+        xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+        layout:decorate="~{commons/layout}">
+<head>
+    <title>Glass door</title>
+    <script th:src="@{assets/vendors/js/datatables/datatables.min.js}"></script>
+    <script th:src="@{assets/vendors/js/datatables/dataTables.buttons.min.js}"></script>
+    <script th:src="@{assets/js/components/tables/tables.js}"></script>
+    table td,th{
+        text-align: center;
+    }
+
+</head>
+<body>
+
+    <div layout:fragment="menu">
+        <li><a href="/"><i class="la la-external-link"></i><span>Import Data</span></a></li>
+        <li class="active"><a href="/add"><i class="la la-eyedropper"></i><span>Add Collection</span></a></li>
+    </div>
+
+    <div layout:fragment="contents">
+        <div class="row flex-row">
+            <div class="col-xl-12">
+                <!-- Form -->
+                <div class="widget has-shadow">
+                    <div class="widget-header bordered no-actions d-flex align-items-center">
+                        <h4>Add Collection</h4>
+                        <button style="display:none" id="showEditModal" data-toggle="modal" data-target="#editModal"></button>
+                    </div>
+                    <div class="widget-body">
+                        <button type="button" class="btn btn-danger mr-1 mb-2" style="float:right" data-toggle="modal" data-target="#addModal">Add</button>
+                        <div class="table-responsive">
+                            <table id="sorting-table" class="table mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="text-align:center">No</th>
+                                    <th style="text-align:center">Collection Name</th>
+                                    <th style="text-align:center">Locators</th>
+                                    <th style="text-align:center">Actions</th>
+                                </tr>
+                                </thead>
+                                <tbody id="collectionTB">
+                                </tbody>
+                            </table>
+                        </div>
+
+
+                    </div>
+                </div>
+                <!-- End Form -->
+            </div>
+        </div>
+
+        <div id="addModal" class="modal fade">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form action="addCollection" method="POST">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Add Collection</h4>
+                        <button type="button" class="close" data-dismiss="modal">
+                            <span aria-hidden="true">×</span>
+                            <span class="sr-only">close</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row flex-row">
+                            <div class="col-xl-12">
+                                <div class="form-group row d-flex align-items-center mb">
+                                    <label class="col-lg-5 form-control-label d-flex justify-content-lg-end">Collection Name : </label>
+                                    <div class="col-lg-7">
+                                        <input type="text" class="form-control" name="collectionName" id="newCollectionName" placeholder="Enter Collection Name">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-shadow" data-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="editModal" class="modal fade">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form action="renameCollection" method="POST">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Rename Collection</h4>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span aria-hidden="true">×</span>
+                                <span class="sr-only">close</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row flex-row">
+                                <div class="col-xl-12">
+                                    <div class="form-group row d-flex align-items-center mb">
+                                        <label class="col-lg-5 form-control-label d-flex justify-content-lg-end">Collection Name : </label>
+                                        <div class="col-lg-7">
+                                            <input type="hidden" class="form-control" name="oldCollectionName" id="oldCollectionName">
+                                            <input type="text" class="form-control" name="collectionName" id="collectionName" placeholder="Enter Collection Name">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-shadow" data-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script>
+        $(document).ready(function(){
+            var jsonList = [(${collections})];
+            console.log(jsonList[0]);
+            var html = "";
+            for(var i = 0; i < jsonList.length; i ++){
+                html += '<tr><td style="text-align:center">' + jsonList[i].no+ '</td><td style="text-align:center">' + jsonList[i].name + '</td><td style="text-align:center">' + jsonList[i].locators +'</td>'+
+                '<td style="text-align:center"><button type="button" class="btn btn-success btn-sm mr-1 mb-2" onclick="renameCollection(\''+jsonList[i].name+'\')"><i class="la la-edit edit"></i></button>'+
+                '   <button type="button" class="btn btn-success btn-sm mr-1 mb-2" onclick="removeCollection(\''+jsonList[i].name+'\')"><i class="la la-trash"></i></button></td></tr>';
+            }
+            $("#collectionTB").html(html);
+
+        });
+        function renameCollection(curName){
+            $("#collectionName").val(curName);
+            $("#oldCollectionName").val(curName);
+            $("#showEditModal").click();
+        }
+
+        function removeCollection(collectionName){
+            if(confirm("You really want to delete this collection ?")){
+                $.ajax({
+                    type: "POST",
+                    url: "removeCollection",
+                    data: {collectionName:collectionName},
+                    dataType: 'json',
+                    error: function(data){
+                        location.reload(true);
+                         }
+                    });
+
+            }
+        }
+
+    </script>
+
+    </div>
+
+</body>
+</html>
